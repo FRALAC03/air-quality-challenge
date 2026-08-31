@@ -195,3 +195,29 @@ FROM "Measurement" m
 JOIN "Sensor" s ON m."sensorId" = s.id
 GROUP BY s."pollutantName", m.status
 ORDER BY s."pollutantName", m.status;
+
+\echo '================================================'
+\echo '8 - Monza PM10 July: data present / zero exceed'
+\echo '================================================'
+
+WITH daily_station_avg AS (
+    SELECT
+        st.id AS station_id,
+        DATE_TRUNC('day', m."recordedAt") AS day,
+        AVG(m.value) AS daily_avg
+    FROM "Measurement" m
+    JOIN "Sensor" s ON m."sensorId" = s.id
+    JOIN "Station" st ON s."stationId" = st.id
+    WHERE s."pollutantName" = 'PM10 (SM2005)'
+      AND st.municipality = 'Monza'
+      AND m.status = 'VA'
+      AND m."recordedAt" >= '2026-07-01'
+      AND m."recordedAt" < '2026-08-01'
+    GROUP BY st.id, DATE_TRUNC('day', m."recordedAt")
+)
+SELECT
+    COUNT(*) AS station_days_with_data,
+    COUNT(*) FILTER (WHERE daily_avg > 50) AS station_exceedance_events,
+    COUNT(DISTINCT day) FILTER (WHERE daily_avg > 50)
+        AS municipality_exceedance_days
+FROM daily_station_avg;

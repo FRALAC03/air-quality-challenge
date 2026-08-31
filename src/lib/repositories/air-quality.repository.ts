@@ -188,6 +188,35 @@ export const AirQualityRepository = {
   r.count ?? BigInt(0)
 )
     }));
-  }
+  },
+
+  async hasValidData(
+  pollutant: PollutantCode,
+  startDate: FloatingTimestamp,
+  endDate: FloatingTimestamp,
+  municipality?: string,
+): Promise<boolean> {
+  const pollutantName = getArpaPollutantName(pollutant);
+
+  const municipalityFilter = municipality
+    ? Prisma.sql`AND st.municipality = ${municipality}`
+    : Prisma.empty;
+
+  const result = await prisma.$queryRaw<{ exists: boolean }[]>`
+    SELECT EXISTS (
+      SELECT 1
+      FROM "Measurement" m
+      JOIN "Sensor" s ON m."sensorId" = s.id
+      JOIN "Station" st ON s."stationId" = st.id
+      WHERE s."pollutantName" = ${pollutantName}
+        AND m.status = 'VA'
+        AND m."recordedAt" >= ${startDate}::timestamp
+        AND m."recordedAt" < ${endDate}::timestamp
+        ${municipalityFilter}
+    ) AS exists
+  `;
+
+  return result[0]?.exists ?? false;
+},
 
 };
