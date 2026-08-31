@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Station {
+  id           Int    @id
+  name         String
+  municipality String
+  province     String
+  latitude     Float?
+  longitude    Float?
+
+  sensors Sensor[]
+
+  @@index([municipality])
+}
+
+model Sensor {
+  id            Int    @id
+  pollutantName String
+  unit          String
+  stationId     Int
+
+  station      Station       @relation(fields: [stationId], references: [id], onDelete: Restrict)
+  measurements Measurement[]
+
+  @@index([stationId])
+  @@index([pollutantName])
+}
+
+enum MeasurementStatus {
+  VA
+  NA
+}
+
+model Measurement {
+  id         Int               @id @default(autoincrement())
+  recordedAt DateTime          @db.Timestamp(3)
+  value      Float
+  status     MeasurementStatus
+  sensorId   Int
+
+  sensor Sensor @relation(fields: [sensorId], references: [id], onDelete: Restrict)
+
+  @@unique([sensorId, recordedAt])
+  @@index([recordedAt])
+}
