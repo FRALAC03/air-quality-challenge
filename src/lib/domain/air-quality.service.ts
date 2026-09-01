@@ -412,4 +412,17 @@ export const AirQualityService = {
       exceedances
     };
   },
+
+  async getMunicipalities(): Promise<{
+  status: "OK";
+  municipalities: string[];
+}> {
+  const municipalities =
+    await AirQualityRepository.getMunicipalities();
+
+  return {
+    status: "OK",
+    municipalities,
+  };
+},
 };

@@ -71,3 +71,78 @@ export function getDashboardPeriods(maxDateFloating: FloatingTimestamp) {
     previousPeriod: { start: previousStart, end: currentStart }
   };
 }
+
+export function addFloatingDays(
+  floating: FloatingTimestamp,
+  daysToAdd: number,
+): FloatingTimestamp {
+  if (
+    !Number.isInteger(daysToAdd) ||
+    daysToAdd < 0
+  ) {
+    throw new Error(
+      "daysToAdd must be a non-negative integer",
+    );
+  }
+
+  const match = floating.match(
+    /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?)?$/,
+  );
+
+  if (!match) {
+    throw new Error(
+      `Invalid floating timestamp: ${floating}`,
+    );
+  }
+
+  let year = parseInt(match[1], 10);
+  let month = parseInt(match[2], 10);
+  let day = parseInt(match[3], 10);
+
+  const timePart =
+    match[4] || "T00:00:00";
+
+  if (month < 1 || month > 12) {
+    throw new Error(
+      `Invalid floating timestamp: ${floating}`,
+    );
+  }
+
+  const maxDay =
+    getDaysInMonth(year, month);
+
+  if (day < 1 || day > maxDay) {
+    throw new Error(
+      `Invalid floating timestamp: ${floating}`,
+    );
+  }
+
+  for (
+    let i = 0;
+    i < daysToAdd;
+    i++
+  ) {
+    day++;
+
+    const daysInCurrentMonth =
+      getDaysInMonth(year, month);
+
+    if (day > daysInCurrentMonth) {
+      day = 1;
+      month++;
+
+      if (month > 12) {
+        month = 1;
+        year++;
+      }
+    }
+  }
+
+  const pad = (value: number) =>
+    value.toString().padStart(2, "0");
+
+  return (
+    `${year}-${pad(month)}-${pad(day)}` +
+    timePart
+  );
+}

@@ -293,6 +293,14 @@ export const AirQualityRepository = {
       recordedAt: r.recordedAt,
       value: r.value
     }));
-  }
+  },
 
+  async getMunicipalities(): Promise<string[]> {
+    const results = await prisma.$queryRaw<{ municipality: string }[]>`
+      SELECT DISTINCT municipality
+      FROM "Station"
+      ORDER BY municipality ASC
+    `;
+    return results.map(r => r.municipality);
+  }
 };
