@@ -7,8 +7,8 @@ import type {
   ExceedanceResult, 
   HourlyExceedanceResult, 
   PeriodAverageResult, 
-  AreaPeriodAverageResult,
   PeriodComparisonResult,
+  AreaPeriodAverageResult,
   ThresholdConfig,
   TrendClassification,
   ToolResultStatus
@@ -54,6 +54,32 @@ function validatePeriod(period: Period) {
   if (period.start >= period.end) throw new Error("Start timestamp must be strictly before end timestamp.");
 }
 
+/**
+ * Funzione pura per il calcolo unificato del trend su due medie temporali
+ */
+export function calculateTrend(previousValue: number | null, currentValue: number | null): {
+  absoluteChange: number | null;
+  percentageChange: number | null;
+  trend: TrendClassification | null;
+} {
+  if (previousValue === null || currentValue === null) {
+    return { absoluteChange: null, percentageChange: null, trend: null };
+  }
+
+  const absoluteChange = currentValue - previousValue;
+  let percentageChange: number | null = null;
+  let trend: TrendClassification | null = null;
+
+  if (previousValue !== 0) {
+    percentageChange = (absoluteChange / previousValue) * 100;
+    if (percentageChange <= -5) trend = "IMPROVING";
+    else if (percentageChange >= 5) trend = "WORSENING";
+    else trend = "STABLE";
+  }
+
+  return { absoluteChange, percentageChange, trend };
+}
+
 export const AirQualityService = {
   
   async getExceedances(
@@ -71,7 +97,6 @@ export const AirQualityService = {
 
     const threshold = getThreshold(pollutant);
 
-    // 1. Validazione compatibilità metrica/inquinante PRIMA del db
     if (pollutant === "PM25") {
       return {
         status: "NOT_ASSESSABLE",
@@ -99,7 +124,6 @@ export const AirQualityService = {
       return { status: "INVALID_REQUEST", message: "Municipality is required for MUNICIPALITY_EXCEEDANCE_DAYS.", pollutant, period, metric, value: null, unit: "" } as ExceedanceResult;
     }
 
-    // 2. Controllo Esistenza Dati
     const hasData = await AirQualityRepository.hasValidData(pollutant, period.start, period.end, municipality);
     if (!hasData) {
       return {
@@ -114,7 +138,6 @@ export const AirQualityService = {
       } as ExceedanceResult;
     }
 
-    // 3. Esecuzione Calcoli
     if (metric === "MUNICIPALITY_EXCEEDANCE_HOURS") {
       const results = await AirQualityRepository.getMunicipalityHourlyExceedances(
         pollutant, threshold.value, period.start, period.end, municipality
@@ -130,20 +153,44 @@ export const AirQualityService = {
     }
 
     if (metric === "MUNICIPALITY_EXCEEDANCE_DAYS") {
-      const count = await AirQualityRepository.getMunicipalityDailyExceedanceDays(
-        pollutant, threshold.value, period.start, period.end, municipality as string
-      );
-      return {
-        status: "OK",
-        pollutant,
-        period,
-        municipality,
-        metric,
-        value: count,
-        unit: "days",
-        metadata: { source: "database_computed", aggregation: threshold.base }
-      };
-    }
+  const normalizedMunicipality = municipality?.trim();
+
+  if (!normalizedMunicipality) {
+    return {
+      status: "INVALID_REQUEST",
+      message:
+        "Municipality is required for MUNICIPALITY_EXCEEDANCE_DAYS.",
+      pollutant,
+      period,
+      metric,
+      value: null,
+      unit: "",
+    };
+  }
+
+  const count =
+    await AirQualityRepository.getMunicipalityDailyExceedanceDays(
+      pollutant,
+      threshold.value,
+      period.start,
+      period.end,
+      normalizedMunicipality,
+    );
+
+  return {
+    status: "OK",
+    pollutant,
+    period,
+    municipality: normalizedMunicipality,
+    metric,
+    value: count,
+    unit: "days",
+    metadata: {
+      source: "database_computed",
+      aggregation: threshold.base,
+    },
+  };
+}
 
     if (metric === "STATION_EXCEEDANCE_EVENTS") {
       const count = await AirQualityRepository.getDailyStationExceedanceEvents(
@@ -202,72 +249,6 @@ export const AirQualityService = {
     };
   },
 
-  async comparePeriods(
-    pollutant: PollutantCode,
-    period1: Period,
-    period2: Period,
-    municipality: string
-  ): Promise<PeriodComparisonResult> {
-    
-    try {
-      validatePeriod(period1);
-      validatePeriod(period2);
-    } catch (e: unknown) {
-      return { status: "INVALID_REQUEST", message: getErrorMessage(e), pollutant, period1, period2, municipality, period1Average: null, period2Average: null, absoluteChange: null, percentageChange: null, trend: null };
-    }
-
-    const avg1 = await AirQualityRepository.getPeriodAverage(pollutant, period1.start, period1.end, municipality);
-    const avg2 = await AirQualityRepository.getPeriodAverage(pollutant, period2.start, period2.end, municipality);
-
-    if (avg1 === null || avg2 === null) {
-      return {
-        status: "NO_DATA",
-        pollutant,
-        period1,
-        period2,
-        municipality,
-        period1Average: avg1,
-        period2Average: avg2,
-        absoluteChange: null,
-        percentageChange: null,
-        trend: null,
-      };
-    }
-
-    const absoluteChange = avg2 - avg1;
-    let percentageChange: number | null = null;
-    let trend: TrendClassification | null = null;
-
-    if (avg1 !== 0) {
-      percentageChange = (absoluteChange / avg1) * 100;
-      if (percentageChange <= -5) trend = "IMPROVING";
-      else if (percentageChange >= 5) trend = "WORSENING";
-      else trend = "STABLE";
-    }
-
-    return {
-      status: "OK",
-      pollutant,
-      municipality,
-      period1,
-      period2,
-      period1Average: avg1,
-      period2Average: avg2,
-      absoluteChange,
-      percentageChange,
-      trend,
-      metadata: { source: "database_computed" }
-    };
-  },
-
-  getThresholdRule(pollutant: PollutantCode): ThresholdConfig & { pollutant: PollutantCode; status: ToolResultStatus } {
-    return {
-      status: "OK",
-      pollutant,
-      ...getThreshold(pollutant)
-    };
-  },
-
   async getAreaPeriodAverage(
     pollutant: PollutantCode,
     period: Period
@@ -303,5 +284,62 @@ export const AirQualityService = {
       complianceStatus: threshold.complianceAssessable ? undefined : "NOT_ASSESSABLE",
       metadata: { source: "database_computed", aggregation: "daily", note: threshold.complianceAssessable ? undefined : "Average provided for descriptive purposes only." }
     };
+  },
+
+  async comparePeriods(
+    pollutant: PollutantCode,
+    period1: Period,
+    period2: Period,
+    municipality: string
+  ): Promise<PeriodComparisonResult> {
+    
+    try {
+      validatePeriod(period1);
+      validatePeriod(period2);
+    } catch (e: unknown) {
+      return { status: "INVALID_REQUEST", message: getErrorMessage(e), pollutant, period1, period2, municipality, period1Average: null, period2Average: null, absoluteChange: null, percentageChange: null, trend: null };
+    }
+
+    const avg1 = await AirQualityRepository.getPeriodAverage(pollutant, period1.start, period1.end, municipality);
+    const avg2 = await AirQualityRepository.getPeriodAverage(pollutant, period2.start, period2.end, municipality);
+
+    if (avg1 === null || avg2 === null) {
+      return {
+        status: "NO_DATA",
+        pollutant,
+        period1,
+        period2,
+        municipality,
+        period1Average: avg1,
+        period2Average: avg2,
+        absoluteChange: null,
+        percentageChange: null,
+        trend: null,
+      };
+    }
+
+    const { absoluteChange, percentageChange, trend } = calculateTrend(avg1, avg2);
+
+    return {
+      status: "OK",
+      pollutant,
+      municipality,
+      period1,
+      period2,
+      period1Average: avg1,
+      period2Average: avg2,
+      absoluteChange,
+      percentageChange,
+      trend,
+      metadata: { source: "database_computed" }
+    };
+  },
+
+  getThresholdRule(pollutant: PollutantCode): ThresholdConfig & { pollutant: PollutantCode; status: ToolResultStatus } {
+    return {
+      status: "OK",
+      pollutant,
+      ...getThreshold(pollutant)
+    };
   }
-}; 
+};

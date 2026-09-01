@@ -95,3 +95,33 @@ export interface ThresholdConfig {
   description: string;
   complianceAssessable: boolean;
 } 
+
+export interface DashboardKpiResult {
+  pollutant: PollutantCode;
+  unit: string;
+
+  currentAverage: number | null;
+  previousAverage: number | null;
+
+  absoluteChange: number | null;
+  percentageChange: number | null;
+  trend: TrendClassification | null;
+
+  status: ToolResultStatus;
+
+  complianceStatus?: ComplianceStatus;
+  note?: string;
+}
+
+export interface DashboardSummaryResult {
+  status: ToolResultStatus | "ERROR";
+
+  maxDate: FloatingTimestamp | null;
+
+  currentPeriod: Period | null;
+  previousPeriod: Period | null;
+
+  kpis: DashboardKpiResult[];
+
+  error?: string;
+}
