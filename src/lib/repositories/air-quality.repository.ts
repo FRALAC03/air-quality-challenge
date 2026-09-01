@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@/generated/prisma/client";
-import type { PollutantCode, FloatingTimestamp } from "@/lib/domain/air-quality.types";
+import type { PollutantCode, FloatingTimestamp, StationTimeSeriesPoint, } from "@/lib/domain/air-quality.types";
 import { getArpaPollutantName } from "@/lib/domain/pollutants";
 
 function bigintToSafeNumber(val: bigint): number {
@@ -113,8 +113,8 @@ export const AirQualityRepository = {
     return results.map(r => ({
       municipality: r.municipality,
       exceedanceHours: bigintToSafeNumber(
-  r.exceedanceHours ?? BigInt(0)
-)
+      r.exceedanceHours ?? BigInt(0)
+      )
     }));
   },
 
@@ -123,7 +123,7 @@ export const AirQualityRepository = {
   startDate: FloatingTimestamp,
   endDate: FloatingTimestamp,
   municipality: string,
-): Promise<number | null> {
+  ): Promise<number | null> {
   const pollutantName = getArpaPollutantName(pollutant);
 
   const result = await prisma.$queryRaw<{ periodAvg: number | null }[]>`
@@ -259,5 +259,40 @@ export const AirQualityRepository = {
 
   return result[0]?.exists ?? false;
 },
+
+
+  async getStationTimeSeries(
+    pollutant: PollutantCode,
+    municipality: string,
+    startDate: FloatingTimestamp,
+    endDate: FloatingTimestamp
+  ): Promise<StationTimeSeriesPoint[]> {
+    const pollutantName = getArpaPollutantName(pollutant);
+
+    const results = await prisma.$queryRaw<{ stationId: number; stationName: string; recordedAt: string; value: number }[]>`
+      SELECT 
+        st.id AS "stationId",
+        st.name AS "stationName",
+        TO_CHAR(m."recordedAt", 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS "recordedAt",
+        m.value
+      FROM "Measurement" m
+      JOIN "Sensor" s ON m."sensorId" = s.id
+      JOIN "Station" st ON s."stationId" = st.id
+      WHERE s."pollutantName" = ${pollutantName}
+        AND st.municipality = ${municipality}
+        AND m.status = 'VA'
+        AND m."recordedAt" >= ${startDate}::timestamp
+        AND m."recordedAt" < ${endDate}::timestamp
+      ORDER BY m."recordedAt" ASC, st.id ASC
+    `;
+
+    // Nessuna conversione JS Date necessaria. Il driver restituisce stringhe formattate da TO_CHAR.
+    return results.map(r => ({
+      stationId: r.stationId,
+      stationName: r.stationName,
+      recordedAt: r.recordedAt,
+      value: r.value
+    }));
+  }
 
 };

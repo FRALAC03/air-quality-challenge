@@ -125,3 +125,23 @@ export interface DashboardSummaryResult {
 
   error?: string;
 }
+
+export interface StationTimeSeriesPoint {
+  stationId: number;
+  stationName: string;
+  recordedAt: FloatingTimestamp;
+  value: number;
+}
+
+// Proposta della struttura del futuro Domain Result per la rotta Explore
+export interface ExploreDataResult extends BaseDomainResult {
+  pollutant: PollutantCode;
+  municipality: string;
+  period: Period;
+  timeseries: StationTimeSeriesPoint[];
+  
+  // Il tipo di exceedance dipende dalla regola normativa dell'inquinante 
+  // (es. days per PM10, hours per O3, o NOT_ASSESSABLE per PM25).
+  // La tipizzazione esatta sfrutta l'unione dei tipi creati in Fase C.
+  exceedances: ExceedanceResult | HourlyExceedanceResult; 
+}
