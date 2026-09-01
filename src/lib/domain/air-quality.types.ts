@@ -143,5 +143,5 @@ export interface ExploreDataResult extends BaseDomainResult {
   // Il tipo di exceedance dipende dalla regola normativa dell'inquinante 
   // (es. days per PM10, hours per O3, o NOT_ASSESSABLE per PM25).
   // La tipizzazione esatta sfrutta l'unione dei tipi creati in Fase C.
-  exceedances: ExceedanceResult | HourlyExceedanceResult; 
+  exceedances: ExceedanceResult | HourlyExceedanceResult | null;
 }

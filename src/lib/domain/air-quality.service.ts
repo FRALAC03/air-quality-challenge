@@ -11,7 +11,8 @@ import type {
   AreaPeriodAverageResult,
   ThresholdConfig,
   TrendClassification,
-  ToolResultStatus
+  ToolResultStatus,
+  ExploreDataResult
 } from "./air-quality.types";
 
 const FLOATING_TIMESTAMP_REGEX = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?$/;
@@ -341,5 +342,74 @@ export const AirQualityService = {
       pollutant,
       ...getThreshold(pollutant)
     };
-  }
+  },
+
+  // ... resto di AirQualityService invariato ...
+  
+  async getExploreData(
+    pollutant: PollutantCode,
+    municipality: string,
+    period: Period
+  ): Promise<ExploreDataResult> { 
+    
+    const cleanMunicipality = municipality?.trim();
+
+    try {
+      validatePeriod(period);
+      if (!cleanMunicipality) throw new Error("Municipality is required.");
+    } catch (e: unknown) {
+      return { 
+        status: "INVALID_REQUEST", 
+        message: getErrorMessage(e), 
+        pollutant, 
+        municipality: cleanMunicipality, 
+        period, 
+        timeseries: [], 
+        exceedances: null 
+      };
+    }
+
+    // 1. Fetching Timeseries
+    const timeseries = await AirQualityRepository.getStationTimeSeries(
+      pollutant, cleanMunicipality, period.start, period.end
+    );
+
+    // 2. Status Decision (Basato puramente sull'esistenza dei dati temporali)
+    if (timeseries.length === 0) {
+      return {
+        status: "NO_DATA",
+        pollutant,
+        municipality: cleanMunicipality,
+        period,
+        timeseries: [],
+        exceedances: null // Nessun calcolo ulteriore
+      };
+    }
+
+    // 3. Routing Exceedance Metric Base
+    let metric: ExceedanceMetric;
+    if (pollutant === "PM10" || pollutant === "PM25") {
+      // Per il PM25 il servizio di getExceedances lo intercetterà e restituirà NOT_ASSESSABLE, 
+      // ma abbiamo bisogno di passargli una metrica formale per non incappare nell'errore "Unknown metric".
+      metric = "MUNICIPALITY_EXCEEDANCE_DAYS"; 
+    } else {
+      metric = "MUNICIPALITY_EXCEEDANCE_HOURS"; // O3 e NO2
+    }
+
+    // 4. Esecuzione logica normativa 
+    // Passando la stringa "cleanMunicipality" non avremo il problema dell'undefined e 
+    // HourlyResult restituirà esattamente un array che noi lasceremo intatto (conterrà l'unica city cercata).
+    const exceedances = await this.getExceedances(
+      pollutant, period, metric, cleanMunicipality
+    );
+
+    return {
+      status: "OK",
+      pollutant,
+      municipality: cleanMunicipality,
+      period,
+      timeseries,
+      exceedances
+    };
+  },
 };
