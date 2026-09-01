@@ -83,10 +83,9 @@ if (
     console.log("✅ Test 4 Passed (Atlantide PM10: NO_DATA, empty TS, null exceedance)");
     passed++;
 
-    // 5. PM25 (Timeseries OK, compliance NOT_ASSESSABLE)
-    // Usiamo Schivenoglia Marzo 2026 come default (se la query SQL fallisce cambieremo il comune)
+    
     // 5. PM25 Milano Marzo:
-// Explore OK + timeseries reale + compliance NOT_ASSESSABLE
+    // Explore OK + timeseries reale + compliance NOT_ASSESSABLE
 const res5 = await AirQualityService.getExploreData(
   "PM25",
   "Milano",
