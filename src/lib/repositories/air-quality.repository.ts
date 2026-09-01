@@ -160,6 +160,47 @@ export const AirQualityRepository = {
 
   return result[0]?.periodAvg ?? null;
 },
+  async getAreaPeriodAverage(
+  pollutant: PollutantCode,
+  startDate: FloatingTimestamp,
+  endDate: FloatingTimestamp,
+): Promise<number | null> {
+  const pollutantName = getArpaPollutantName(pollutant);
+
+  const result = await prisma.$queryRaw<
+    { areaAvg: number | null }[]
+  >`
+    WITH daily_station_avg AS (
+      SELECT
+        st.id AS "stationId",
+        DATE_TRUNC('day', m."recordedAt") AS day,
+        AVG(m.value) AS "dailyAvg"
+      FROM "Measurement" m
+      JOIN "Sensor" s
+        ON m."sensorId" = s.id
+      JOIN "Station" st
+        ON s."stationId" = st.id
+      WHERE s."pollutantName" = ${pollutantName}
+        AND m.status = 'VA'
+        AND m."recordedAt" >= ${startDate}::timestamp
+        AND m."recordedAt" < ${endDate}::timestamp
+      GROUP BY
+        st.id,
+        DATE_TRUNC('day', m."recordedAt")
+    ),
+    daily_area_avg AS (
+      SELECT
+        day,
+        AVG("dailyAvg") AS "dayAreaAvg"
+      FROM daily_station_avg
+      GROUP BY day
+    )
+    SELECT AVG("dayAreaAvg") AS "areaAvg"
+    FROM daily_area_avg
+  `;
+
+  return result[0]?.areaAvg ?? null;
+},
 
   async getLatestDataTimestamp(): Promise<string | null> {
     const result = await prisma.$queryRaw<{ latest: string | null }[]>`

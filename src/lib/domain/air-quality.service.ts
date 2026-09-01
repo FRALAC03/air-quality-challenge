@@ -7,6 +7,7 @@ import type {
   ExceedanceResult, 
   HourlyExceedanceResult, 
   PeriodAverageResult, 
+  AreaPeriodAverageResult,
   PeriodComparisonResult,
   ThresholdConfig,
   TrendClassification,
@@ -264,6 +265,43 @@ export const AirQualityService = {
       status: "OK",
       pollutant,
       ...getThreshold(pollutant)
+    };
+  },
+
+  async getAreaPeriodAverage(
+    pollutant: PollutantCode,
+    period: Period
+  ): Promise<AreaPeriodAverageResult> {
+    
+    try {
+      validatePeriod(period);
+    } catch (e: unknown) {
+      return { status: "INVALID_REQUEST", message: getErrorMessage(e), pollutant, scope: "AREA", period, value: null, unit: "" };
+    }
+
+    const value = await AirQualityRepository.getAreaPeriodAverage(pollutant, period.start, period.end);
+    const threshold = getThreshold(pollutant);
+
+    if (value === null) {
+      return {
+        status: "NO_DATA",
+        pollutant,
+        scope: "AREA",
+        period,
+        value: null,
+        unit: threshold.unit
+      };
+    }
+
+    return {
+      status: "OK",
+      pollutant,
+      scope: "AREA",
+      period,
+      value,
+      unit: threshold.unit,
+      complianceStatus: threshold.complianceAssessable ? undefined : "NOT_ASSESSABLE",
+      metadata: { source: "database_computed", aggregation: "daily", note: threshold.complianceAssessable ? undefined : "Average provided for descriptive purposes only." }
     };
   }
 }; 

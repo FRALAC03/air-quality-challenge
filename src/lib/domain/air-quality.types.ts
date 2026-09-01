@@ -66,6 +66,15 @@ export interface PeriodAverageResult extends BaseDomainResult {
   complianceStatus?: ComplianceStatus;
 }
 
+export interface AreaPeriodAverageResult extends BaseDomainResult {
+  pollutant: PollutantCode;
+  scope: "AREA";
+  period: Period;
+  value: number | null;
+  unit: string;
+  complianceStatus?: ComplianceStatus;
+}
+
 export interface PeriodComparisonResult extends BaseDomainResult {
   pollutant: PollutantCode;
   municipality: string; // Ora obbligatorio
