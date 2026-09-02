@@ -256,7 +256,7 @@ export const AirQualityService = {
       value,
       unit: threshold.unit,
       complianceStatus: threshold.complianceAssessable ? undefined : "NOT_ASSESSABLE",
-      metadata: { source: "database_computed", aggregation: "daily", note: threshold.complianceAssessable ? undefined : "Average provided for descriptive purposes only." }
+      metadata: { source: "database_computed", aggregation: "daily", note: threshold.complianceAssessable ? undefined : "Media fornita esclusivamente a scopo descrittivo." }
     };
   },
 
@@ -293,7 +293,7 @@ export const AirQualityService = {
       value,
       unit: threshold.unit,
       complianceStatus: threshold.complianceAssessable ? undefined : "NOT_ASSESSABLE",
-      metadata: { source: "database_computed", aggregation: "daily", note: threshold.complianceAssessable ? undefined : "Average provided for descriptive purposes only." }
+      metadata: { source: "database_computed", aggregation: "daily", note: threshold.complianceAssessable ? undefined : "Media fornita esclusivamente a scopo descrittivo." }
     };
   },
 

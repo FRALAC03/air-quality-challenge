@@ -20,7 +20,6 @@ interface AirQualityChartProps {
   unit: string;
 }
 
-// Palette UI per distinguere le stazioni. Non ha alcun significato normativo.
 const LINE_COLORS = [
   "#0ea5e9", // Sky 500
   "#8b5cf6", // Violet 500
@@ -35,71 +34,75 @@ export default function AirQualityChart({ timeseries, unit }: AirQualityChartPro
   
   const payload = useMemo(() => transformToRechartsPayload(timeseries), [timeseries]);
 
-  if (payload.data.length === 0) {
-    return null; // Fallback di sicurezza gestito a monte, ma utile per evitare crash in canvas vuoto
-  }
+  if (payload.data.length === 0) return null;
 
   return (
-    <div className="w-full h-[300px] md:h-[400px]">
+    <div className="w-full h-[300px] sm:h-[340px] md:h-[380px]">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={payload.data} margin={{ top: 20, right: 30, left: 10, bottom: 5 }}>
+        <LineChart data={payload.data} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
           
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
           
-          <XAxis 
-            dataKey="recordedAt" 
-            tickFormatter={formatChartXAxis}
-            tick={{ fontSize: 12, fill: "#64748b" }}
-            tickMargin={10}
-            minTickGap={30}
-          />
-          
-          <YAxis 
-            tick={{ fontSize: 12, fill: "#64748b" }}
-            tickMargin={10}
-            unit={` ${unit}`}
-            width={80}
-          />
-          
-          <Tooltip
-  labelFormatter={(label) =>
-  formatChartTooltipLabel(String(label ?? ""))
-}
-  formatter={(value, name) => [
-    typeof value === "number"
-      ? `${formatMeasurementValue(value)} ${unit}`
-      : `${String(value)} ${unit}`,
-    String(name),
-  ]}
-  contentStyle={{
-    borderRadius: "8px",
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+          <XAxis
+  dataKey="recordedAt"
+  tickFormatter={formatChartXAxis}
+  tick={{
+    fontSize: 11,
+    fill: "#64748b",
   }}
-  labelStyle={{
-    fontWeight: "bold",
-    color: "#334155",
-    marginBottom: "8px",
+  tickMargin={12}
+  interval="preserveStartEnd"
+  minTickGap={32}
+  axisLine={{
+    stroke: "#cbd5e1",
+  }}
+  tickLine={{
+    stroke: "#cbd5e1",
   }}
 />
           
+          <YAxis 
+            tick={{ fontSize: 11, fill: "#64748b" }}
+            tickMargin={10}
+            unit={` ${unit}`}
+            width={75}
+            axisLine={false}
+            tickLine={false}
+          />
+          
+          <Tooltip 
+            labelFormatter={(label) =>
+  formatChartTooltipLabel(
+    String(label ?? ""),
+  )
+}
+            formatter={(value, name) => [
+  typeof value === "number"
+    ? `${formatMeasurementValue(value)} ${unit}`
+    : `${String(value)} ${unit}`,
+  String(name),
+]}
+            contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontSize: '13px' }}
+            labelStyle={{ fontWeight: '600', color: '#334155', marginBottom: '8px' }}
+          />
+          
           <Legend 
-            wrapperStyle={{ paddingTop: '20px', fontSize: '14px', color: '#475569' }}
+            wrapperStyle={{ paddingTop: '20px', fontSize: '13px', color: '#475569' }}
             iconType="circle"
           />
 
           {payload.metadata.map((station, index) => (
-           <Line
-  key={station.key}
-  type="linear"
-  dataKey={station.key}
-  name={station.stationName}
-  stroke={LINE_COLORS[index % LINE_COLORS.length]}
-  strokeWidth={2}
-  dot={false}
-  activeDot={{ r: 6, strokeWidth: 0 }}
-  connectNulls={false}
-/>
+            <Line
+              key={station.key}
+              type="linear"
+              dataKey={station.key}
+              name={station.stationName}
+              stroke={LINE_COLORS[index % LINE_COLORS.length]}
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 5, strokeWidth: 0 }}
+              connectNulls={false} // Punto vitale
+            />
           ))}
 
         </LineChart>

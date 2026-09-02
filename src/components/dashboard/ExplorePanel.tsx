@@ -1,10 +1,12 @@
 "use client";
-
+import {
+  subtractFloatingDays,
+} from "@/lib/domain/date-utils";
 import { useState } from "react";
 import { apiClient } from "@/lib/frontend/api-client";
 import type { PollutantCode, ExploreDataResult } from "@/lib/domain/air-quality.types";
-import { AlertTriangle, Activity, Search } from "lucide-react";
-import { subtractFloatingDays } from "@/lib/domain/date-utils";
+import { AlertTriangle, Activity, Search, LoaderCircle } from "lucide-react";
+
 import ExploreFilters from "./ExploreFilters";
 import NoDataState from "./NoDataState";
 import AirQualityChart from "./AirQualityChart";
@@ -26,10 +28,11 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
   const [data, setData] = useState<ExploreDataResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  // Nuovo stato: traccia se è la primissima visualizzazione del pannello
-  const [hasSearched, setHasSearched] = useState(false); 
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleFetch = async () => {
+    if (isLoading) return; // Prevent double submit
+    
     setErrorMsg(null);
     setHasSearched(true);
     
@@ -59,22 +62,25 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
       }
     } catch (err) {
       console.error("Explore fetch error:", err);
+      // Non distruggiamo il grafico precedente, mostriamo solo l'alert.
       setErrorMsg("Impossibile caricare i dati selezionati.");
-      setData(null);
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const isNoData = data?.status === "NO_DATA";
   const isOk = data?.status === "OK" && data.timeseries.length > 0;
-
-  // Derivazione informazioni per il sub-header
-  const distinctStationsCount = isOk ? new Set(data.timeseries.map(p => p.stationId)).size : 0;
   const inclusiveEnd =
   isOk
-    ? subtractFloatingDays(data.period.end, 1)
+    ? subtractFloatingDays(
+        data.period.end,
+        1,
+      )
     : null;
+
+  const distinctStationsCount = isOk ? new Set(data.timeseries.map(p => p.stationId)).size : 0;
+  
 
   return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8">
@@ -104,8 +110,19 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
       />
 
       {/* Area dei risultati */}
-      <div className="mt-8">
+      <div className="mt-8 relative" aria-live="polite">
         
+        {/* Overlay leggero di caricamento per dati successivi al primo */}
+        {isLoading && hasSearched && data && !errorMsg && (
+          <div className="absolute top-0 left-0 right-0 z-10 flex justify-center pb-4">
+            <div className="bg-slate-900/90 text-white text-sm font-medium px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+              <LoaderCircle className="w-4 h-4 animate-spin" />
+              Aggiornamento dati...
+            </div>
+          </div>
+        )}
+
+        {/* Inline Error */}
         {errorMsg && (
           <div className="p-4 mb-6 bg-rose-50 rounded-lg border border-rose-200 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
@@ -113,35 +130,41 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
           </div>
         )}
 
+        {/* Empty State Iniziale */}
         {!hasSearched && !isLoading && !data && !errorMsg && (
           <div className="flex flex-col items-center justify-center p-12 border border-dashed border-slate-200 rounded-xl bg-slate-50">
             <Search className="w-8 h-8 text-slate-300 mb-3" />
-            <p className="text-slate-500 text-sm font-medium">Seleziona i filtri e avvia una ricerca per visualizzare la serie temporale.</p>
+            <p className="text-slate-500 text-sm font-medium text-center">Seleziona i filtri e avvia una ricerca.</p>
           </div>
         )}
 
+        {/* No Data State */}
         {hasSearched && isNoData && !isLoading && !errorMsg && <NoDataState />}
 
-        {isOk && !errorMsg && (
-          <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+        {/* OK State Chart + Summary */}
+        {isOk && (
+          <div className={`transition-opacity duration-200 ${isLoading ? 'opacity-40' : 'opacity-100'}`}>
             
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-100 pb-4 mb-6 gap-2">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">{data.pollutant} • {data.municipality}</h3>
                 <p className="mt-1 text-sm text-slate-500">
-  {formatFloatingDate(data.period.start)}
+  {formatFloatingDate(
+    data.period.start,
+  )}
   {" → "}
   {inclusiveEnd
-    ? formatFloatingDate(inclusiveEnd)
+    ? formatFloatingDate(
+        inclusiveEnd,
+      )
     : "—"}
 </p>
               </div>
               <div className="text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
-                {distinctStationsCount} {distinctStationsCount === 1 ? 'stazione' : 'stazioni'} rilevate
+                {distinctStationsCount} {distinctStationsCount === 1 ? 'stazione' : 'stazioni'}
               </div>
             </div>
 
-            {/* Accessibilità: SR-only description */}
             <p className="sr-only">Serie temporali delle stazioni disponibili per il periodo selezionato. Segue un riepilogo testuale dei superamenti normativi.</p>
 
             <AirQualityChart
