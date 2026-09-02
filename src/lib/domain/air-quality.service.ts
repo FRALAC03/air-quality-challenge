@@ -140,18 +140,28 @@ export const AirQualityService = {
     }
 
     if (metric === "MUNICIPALITY_EXCEEDANCE_HOURS") {
-      const results = await AirQualityRepository.getMunicipalityHourlyExceedances(
-        pollutant, threshold.value, period.start, period.end, municipality
-      );
-      return {
-        status: "OK",
-        pollutant,
-        period,
-        metric,
-        results,
-        metadata: { source: "database_computed", aggregation: threshold.base }
-      };
-    }
+  const results =
+    await AirQualityRepository.getMunicipalityHourlyExceedances(
+      pollutant,
+      threshold.value,
+      period.start,
+      period.end,
+      municipality,
+    );
+
+  return {
+    status: "OK",
+    pollutant,
+    period,
+    metric,
+    unit: threshold.unit,
+    results,
+    metadata: {
+      source: "database_computed",
+      aggregation: threshold.base,
+    },
+  };
+}
 
     if (metric === "MUNICIPALITY_EXCEEDANCE_DAYS") {
   const normalizedMunicipality = municipality?.trim();
@@ -344,7 +354,6 @@ export const AirQualityService = {
     };
   },
 
-  // ... resto di AirQualityService invariato ...
   
   async getExploreData(
     pollutant: PollutantCode,
@@ -353,6 +362,7 @@ export const AirQualityService = {
   ): Promise<ExploreDataResult> { 
     
     const cleanMunicipality = municipality?.trim();
+    const threshold = getThreshold(pollutant);
 
     try {
       validatePeriod(period);
@@ -365,6 +375,7 @@ export const AirQualityService = {
         municipality: cleanMunicipality, 
         period, 
         timeseries: [], 
+        measurementUnit: threshold.unit,
         exceedances: null 
       };
     }
@@ -381,6 +392,7 @@ export const AirQualityService = {
         pollutant,
         municipality: cleanMunicipality,
         period,
+        measurementUnit: threshold.unit,
         timeseries: [],
         exceedances: null // Nessun calcolo ulteriore
       };
@@ -408,6 +420,7 @@ export const AirQualityService = {
       pollutant,
       municipality: cleanMunicipality,
       period,
+      measurementUnit: threshold.unit,
       timeseries,
       exceedances
     };

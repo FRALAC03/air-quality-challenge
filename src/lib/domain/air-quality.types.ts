@@ -139,9 +139,22 @@ export interface ExploreDataResult extends BaseDomainResult {
   municipality: string;
   period: Period;
   timeseries: StationTimeSeriesPoint[];
+  measurementUnit: string;
   
   // Il tipo di exceedance dipende dalla regola normativa dell'inquinante 
   // (es. days per PM10, hours per O3, o NOT_ASSESSABLE per PM25).
   // La tipizzazione esatta sfrutta l'unione dei tipi creati in Fase C.
   exceedances: ExceedanceResult | HourlyExceedanceResult | null;
+}
+
+export interface HourlyExceedanceResult
+  extends BaseDomainResult {
+  pollutant: PollutantCode;
+  period: Period;
+  metric: ExceedanceMetric;
+  unit: string;
+  results: {
+    municipality: string;
+    exceedanceHours: number;
+  }[];
 }

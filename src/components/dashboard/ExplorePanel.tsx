@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { apiClient } from "@/lib/frontend/api-client";
 import type { PollutantCode, ExploreDataResult } from "@/lib/domain/air-quality.types";
-import { AlertTriangle, Activity } from "lucide-react";
-
+import { AlertTriangle, Activity, Search } from "lucide-react";
+import { subtractFloatingDays } from "@/lib/domain/date-utils";
 import ExploreFilters from "./ExploreFilters";
 import NoDataState from "./NoDataState";
+import AirQualityChart from "./AirQualityChart";
+import ExceedanceSummary from "./ExceedanceSummary";
+import { formatFloatingDate } from "@/lib/frontend/display-formatters";
 
 interface ExplorePanelProps {
   municipalities: string[];
@@ -23,11 +26,13 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
   const [data, setData] = useState<ExploreDataResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Nuovo stato: traccia se è la primissima visualizzazione del pannello
+  const [hasSearched, setHasSearched] = useState(false); 
 
   const handleFetch = async () => {
     setErrorMsg(null);
+    setHasSearched(true);
     
-    // Validazione base Client-side
     if (!municipality.trim()) {
       setErrorMsg("Seleziona un comune.");
       return;
@@ -60,43 +65,16 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
       setIsLoading(false);
     }
   };
-
-  // Status Booleans
+  
   const isNoData = data?.status === "NO_DATA";
   const isOk = data?.status === "OK" && data.timeseries.length > 0;
 
-  // Derivazione temporanea per il preview tecnico (senza cast)
-  let excValueStr = "—";
-  let excMetric = "—";
-  let excStatus = "—";
-
-  if (isOk && data.exceedances) {
-    excStatus = data.exceedances.status;
-    
-    if (excStatus === "NOT_ASSESSABLE") {
-      excMetric = "Regulatory Limit";
-      excValueStr = "Non Valutabile";
-    } else if ("value" in data.exceedances) {
-      // ExceedanceResult (PM10)
-      excMetric = data.exceedances.metric;
-      excValueStr = `${data.exceedances.value} ${data.exceedances.unit}`;
-    } else if ("results" in data.exceedances) {
-      // HourlyExceedanceResult (O3, NO2)
-      excMetric = data.exceedances.metric;
-      const targetMun =
-  data.exceedances.results.find(
-    (result) =>
-      result.municipality ===
-      data.municipality,
-  );
-      excValueStr = targetMun ? `${targetMun.exceedanceHours} hours` : "0 hours";
-    }
-  }
-
-  // Count distinct stations
-  const distinctStations = isOk 
-    ? new Set(data.timeseries.map(p => p.stationId)).size 
-    : 0;
+  // Derivazione informazioni per il sub-header
+  const distinctStationsCount = isOk ? new Set(data.timeseries.map(p => p.stationId)).size : 0;
+  const inclusiveEnd =
+  isOk
+    ? subtractFloatingDays(data.period.end, 1)
+    : null;
 
   return (
     <section className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8">
@@ -129,58 +107,50 @@ export default function ExplorePanel({ municipalities }: ExplorePanelProps) {
       <div className="mt-8">
         
         {errorMsg && (
-          <div className="p-4 bg-rose-50 rounded-lg border border-rose-200 flex items-start gap-3">
+          <div className="p-4 mb-6 bg-rose-50 rounded-lg border border-rose-200 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <p className="text-sm font-medium text-rose-800">{errorMsg}</p>
           </div>
         )}
 
-        {isNoData && <NoDataState />}
+        {!hasSearched && !isLoading && !data && !errorMsg && (
+          <div className="flex flex-col items-center justify-center p-12 border border-dashed border-slate-200 rounded-xl bg-slate-50">
+            <Search className="w-8 h-8 text-slate-300 mb-3" />
+            <p className="text-slate-500 text-sm font-medium">Seleziona i filtri e avvia una ricerca per visualizzare la serie temporale.</p>
+          </div>
+        )}
 
-        {isOk && (
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
-            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wide border-b border-slate-200 pb-3 mb-4">
-              Risultato Tecnico (Preview Temporanea)
-            </h3>
+        {hasSearched && isNoData && !isLoading && !errorMsg && <NoDataState />}
+
+        {isOk && !errorMsg && (
+          <div className={`transition-opacity duration-300 ${isLoading ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Inquinante & Comune</span>
-                <span className="text-sm font-semibold text-slate-900">{data.pollutant} • {data.municipality}</span>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-slate-100 pb-4 mb-6 gap-2">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">{data.pollutant} • {data.municipality}</h3>
+                <p className="mt-1 text-sm text-slate-500">
+  {formatFloatingDate(data.period.start)}
+  {" → "}
+  {inclusiveEnd
+    ? formatFloatingDate(inclusiveEnd)
+    : "—"}
+</p>
               </div>
-              
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Periodo selezionato</span>
-                <span className="text-sm font-medium text-slate-700">
-                  {startDate} → {endDate}
-                </span>
+              <div className="text-sm font-medium text-slate-500 bg-slate-50 px-3 py-1 rounded-full border border-slate-200">
+                {distinctStationsCount} {distinctStationsCount === 1 ? 'stazione' : 'stazioni'} rilevate
               </div>
-
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Dati Estratti</span>
-                <span className="text-sm font-medium text-slate-700">
-                  {data.timeseries.length} righe ({distinctStations} stazioni)
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-1 sm:col-span-2 md:col-span-3 pt-4 border-t border-slate-200">
-                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Stato Exceedances</span>
-                <div className="mt-1 flex items-center gap-3">
-                  <span className={`inline-flex px-2 py-1 rounded text-xs font-bold uppercase ${
-                    excStatus === 'OK' ? 'bg-emerald-100 text-emerald-800' :
-                    excStatus === 'NOT_ASSESSABLE' ? 'bg-slate-200 text-slate-700' :
-                    'bg-rose-100 text-rose-800'
-                  }`}>
-                    {excStatus}
-                  </span>
-                  <span className="text-sm font-mono text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-sm">
-                    {excMetric} = {excValueStr}
-                  </span>
-                </div>
-              </div>
-
             </div>
+
+            {/* Accessibilità: SR-only description */}
+            <p className="sr-only">Serie temporali delle stazioni disponibili per il periodo selezionato. Segue un riepilogo testuale dei superamenti normativi.</p>
+
+            <AirQualityChart
+  timeseries={data.timeseries}
+  unit={data.measurementUnit}
+/>
+
+            <ExceedanceSummary exceedances={data.exceedances} municipality={data.municipality} />
+
           </div>
         )}
 
