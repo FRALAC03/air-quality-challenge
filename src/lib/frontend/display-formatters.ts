@@ -15,3 +15,32 @@ export function formatFloatingDate(floating: FloatingTimestamp): string {
   
   return `${day} ${MONTH_NAMES[month - 1]} ${year}`;
 }
+
+export function formatMeasurementValue(
+  value: number | null,
+): string {
+  if (
+    value === null ||
+    !Number.isFinite(value)
+  ) {
+    return "—";
+  }
+
+  return value.toFixed(2);
+}
+
+export function formatPercentage(
+  value: number | null,
+): string {
+  if (
+    value === null ||
+    !Number.isFinite(value)
+  ) {
+    return "—";
+  }
+
+  const sign =
+    value > 0 ? "+" : "";
+
+  return `${sign}${value.toFixed(1)}%`;
+}
