@@ -73,6 +73,14 @@ export default function ChatPanel() {
       return;
     }
 
+    const history =
+  messages.map(
+    (message) => ({
+      role: message.role,
+      content: message.content,
+    }),
+  );
+
     const userMessage:
       ChatMessageItem = {
         id: crypto.randomUUID(),
@@ -93,9 +101,10 @@ export default function ChatPanel() {
 
     try {
       const result =
-        await sendChatMessage(
-          userContent,
-        );
+  await sendChatMessage(
+    userContent,
+    history,
+  );
 
       const normalizedContent =
         normalizeAssistantContent(

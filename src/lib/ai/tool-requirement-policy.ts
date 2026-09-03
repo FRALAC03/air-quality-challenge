@@ -1,3 +1,7 @@
+import type {
+  ConversationHistoryMessage,
+} from "./conversation-context";
+
 const AIR_QUALITY_SUBJECT_PATTERNS: readonly RegExp[] = [
   /\bpm10\b/i,
   /\bpm\s*2[.,]?\s*5\b/i,
@@ -66,4 +70,56 @@ export function doesThisQuestionRequireAtLeastOneTool(
     );
 
   return asksForDatasetFact;
+}
+
+const CONTEXTUAL_FOLLOW_UP_PATTERNS:
+  readonly RegExp[] = [
+    /^\s*e\b/i,
+    /^\s*(?:a|ad|per|nel|nella|in)\s+\S+/i,
+    /\binvece\b/i,
+    /\b(?:lì|li)\b/i,
+    /\bquello\b/i,
+    /\bquella\b/i,
+  ];
+
+export function doesConversationTurnRequireAtLeastOneTool(
+  userMessage: string,
+  history: readonly ConversationHistoryMessage[],
+): boolean {
+  // Caso normale:
+  // la domanda corrente contiene già tutto.
+  if (
+    doesThisQuestionRequireAtLeastOneTool(
+      userMessage,
+    )
+  ) {
+    return true;
+  }
+
+  if (history.length === 0) {
+    return false;
+  }
+
+  const looksLikeContextualFollowUp =
+    CONTEXTUAL_FOLLOW_UP_PATTERNS.some(
+      (pattern) =>
+        pattern.test(userMessage),
+    );
+
+  if (!looksLikeContextualFollowUp) {
+    return false;
+  }
+
+  const recentContext =
+    history
+      .slice(-4)
+      .map(
+        (message) =>
+          message.content,
+      )
+      .join(" ");
+
+  return doesThisQuestionRequireAtLeastOneTool(
+    `${recentContext} ${userMessage}`,
+  );
 }

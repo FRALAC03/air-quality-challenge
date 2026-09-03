@@ -12,7 +12,7 @@ import {
 } from "./tool-executor";
 
 import {
-  doesThisQuestionRequireAtLeastOneTool,
+  doesConversationTurnRequireAtLeastOneTool,
 } from "./tool-requirement-policy";
 
 import type {
@@ -25,8 +25,19 @@ import type {
   AnyToolExecutionResult,
 } from "./tool-types";
 
+import {
+  buildConversationAwareUserMessage,
+} from "./conversation-context";
+
+import type {
+  ConversationHistoryMessage,
+} from "./conversation-context";
+
 export interface RunAirQualityAssistantInput {
   userMessage: string;
+
+  history?:
+    readonly ConversationHistoryMessage[];
 }
 
 export type AssistantRunResult =
@@ -96,15 +107,24 @@ export async function runAirQualityAssistant(
       toolCallsExecuted: 0,
     };
   }
+  const history =
+  input.history ?? [];
+
+const effectiveUserMessage =
+  buildConversationAwareUserMessage(
+    trimmedUserMessage,
+    history,
+  );
 
   const execTool =
     dependencies?.executeTool ??
     executeAirQualityTool;
 
   const requiresAtLeastOneTool =
-    doesThisQuestionRequireAtLeastOneTool(
-      trimmedUserMessage,
-    );
+  doesConversationTurnRequireAtLeastOneTool(
+    trimmedUserMessage,
+    history,
+  );
 
   const messages: ModelMessage[] = [
     {
@@ -114,7 +134,7 @@ export async function runAirQualityAssistant(
     },
     {
       role: "user",
-      content: trimmedUserMessage,
+      content: effectiveUserMessage,
     },
   ];
 
@@ -235,7 +255,7 @@ export async function runAirQualityAssistant(
           {
             role: "user",
             content:
-              trimmedUserMessage,
+              effectiveUserMessage,
           },
         );
 

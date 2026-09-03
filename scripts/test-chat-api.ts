@@ -134,7 +134,7 @@ async function main() {
   );
 
   let passed = 0;
-  const total = 6;
+  const total = 8;
 
   try {
     // ========================================================
@@ -475,6 +475,201 @@ const communicatesNotAssessable =
     );
 
     passed++;
+
+    // ========================================================
+// TEST 7 — MULTI-TURN MUNICIPALITY FOLLOW-UP
+// ========================================================
+
+console.log(
+  "-> Running Test 7 (Multi-turn Milano -> Monza)...",
+);
+
+const firstQuestion =
+  "Quanti giorni con almeno un superamento PM10 " +
+  "ci sono stati a Milano nel marzo 2026?";
+
+const t7a =
+  await postJson({
+    message: firstQuestion,
+  });
+
+if (t7a.status !== 200) {
+  throw new Error(
+    `Test 7 Failed on first turn: HTTP ${t7a.status}. ` +
+      `${JSON.stringify(t7a.data)}`,
+  );
+}
+
+const data7a =
+  parseOkResponse(t7a.data);
+
+if (
+  data7a.toolCallsExecuted < 1 ||
+  !data7a.content.includes("11")
+) {
+  throw new Error(
+    `Test 7 Failed on first turn: ${JSON.stringify(data7a)}`,
+  );
+}
+
+const t7b =
+  await postJson({
+    message:
+      "E a Monza?",
+
+    history: [
+      {
+        role: "user",
+        content:
+          firstQuestion,
+      },
+      {
+        role: "assistant",
+        content:
+          data7a.content,
+      },
+    ],
+  });
+
+if (t7b.status !== 200) {
+  throw new Error(
+    `Test 7 Failed on follow-up: HTTP ${t7b.status}. ` +
+      `${JSON.stringify(t7b.data)}`,
+  );
+}
+
+const data7b =
+  parseOkResponse(t7b.data);
+
+if (
+  data7b.toolCallsExecuted < 1
+) {
+  throw new Error(
+    "Test 7 Failed: follow-up did not use any tool.",
+  );
+}
+
+const lc7 =
+  data7b.content.toLowerCase();
+
+if (
+  !lc7.includes("monza")
+) {
+  throw new Error(
+    `Test 7 Failed: follow-up response does not refer to Monza. ` +
+      `Response: "${data7b.content}"`,
+  );
+}
+
+console.log(
+  "✅ Test 7 Passed (Multi-turn municipality follow-up grounded via HTTP)",
+);
+
+console.log(
+  `   First Reply: "${data7a.content}"`,
+);
+
+console.log(
+  `   Follow-up Reply: "${data7b.content}"\n`,
+);
+
+passed++;
+
+// ========================================================
+// TEST 8 — MULTI-TURN POLLUTANT FOLLOW-UP
+// ========================================================
+
+console.log(
+  "-> Running Test 8 (Multi-turn NO2 -> PM10)...",
+);
+
+const thresholdQuestion =
+  "Qual è la soglia configurata per NO2?";
+
+const t8a =
+  await postJson({
+    message:
+      thresholdQuestion,
+  });
+
+if (t8a.status !== 200) {
+  throw new Error(
+    `Test 8 Failed on first turn: HTTP ${t8a.status}. ` +
+      `${JSON.stringify(t8a.data)}`,
+  );
+}
+
+const data8a =
+  parseOkResponse(t8a.data);
+
+if (
+  data8a.toolCallsExecuted < 1 ||
+  !data8a.content.includes("200")
+) {
+  throw new Error(
+    `Test 8 Failed on first turn: ${JSON.stringify(data8a)}`,
+  );
+}
+
+const t8b =
+  await postJson({
+    message:
+      "E per PM10?",
+
+    history: [
+      {
+        role: "user",
+        content:
+          thresholdQuestion,
+      },
+      {
+        role: "assistant",
+        content:
+          data8a.content,
+      },
+    ],
+  });
+
+if (t8b.status !== 200) {
+  throw new Error(
+    `Test 8 Failed on follow-up: HTTP ${t8b.status}. ` +
+      `${JSON.stringify(t8b.data)}`,
+  );
+}
+
+const data8b =
+  parseOkResponse(t8b.data);
+
+if (
+  data8b.toolCallsExecuted < 1
+) {
+  throw new Error(
+    "Test 8 Failed: follow-up did not use any tool.",
+  );
+}
+
+if (
+  !data8b.content.includes("50")
+) {
+  throw new Error(
+    `Test 8 Failed: PM10 deterministic threshold 50 missing. ` +
+      `Response: "${data8b.content}"`,
+  );
+}
+
+console.log(
+  "✅ Test 8 Passed (Multi-turn pollutant follow-up grounded via HTTP)",
+);
+
+console.log(
+  `   First Reply: "${data8a.content}"`,
+);
+
+console.log(
+  `   Follow-up Reply: "${data8b.content}"\n`,
+);
+
+passed++;
 
     console.log(
       `\n🎉 ALL CHAT API TESTS PASSED (${passed}/${total})`,

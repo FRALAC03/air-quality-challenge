@@ -1,3 +1,7 @@
+import type {
+  ConversationHistoryMessage,
+} from "@/lib/ai/conversation-context";
+
 export interface ChatApiOkResponse {
   status: "OK";
   content: string;
@@ -38,6 +42,8 @@ export function parseChatResponse(
 
 export async function sendChatMessage(
   message: string,
+  history:
+    readonly ConversationHistoryMessage[] = [],
 ): Promise<ChatApiOkResponse> {
   const response = await fetch(
     "/api/chat",
@@ -51,6 +57,7 @@ export async function sendChatMessage(
 
       body: JSON.stringify({
         message,
+        history,
       }),
     },
   );
