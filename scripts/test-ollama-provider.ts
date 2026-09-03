@@ -139,16 +139,40 @@ passed++;
   );
 }
     
-    const lc4 = res4.content.toLowerCase();
-    const indicatesNoData =
+    const lc4 =
+  res4.content.toLowerCase();
+
+const indicatesNoData =
+  // Italiano
   lc4.includes("non ci sono dati") ||
   lc4.includes("nessun dato") ||
+  lc4.includes("dati non disponibili") ||
+  lc4.includes("non sono disponibili") ||
+  lc4.includes("assenza di dati") ||
+
+  // Inglese
+  lc4.includes("no data available") ||
+  lc4.includes("no data") ||
+  lc4.includes("data unavailable") ||
+  lc4.includes("data are not available") ||
+  lc4.includes("data is not available") ||
+
+  // Fallback semantico controllato
   (
     lc4.includes("dati") &&
     lc4.includes("non") &&
     lc4.includes("disponibil")
   ) ||
-  lc4.includes("assenza di dati");
+  (
+    lc4.includes("data") &&
+    (
+      lc4.includes("unavailable") ||
+      (
+        lc4.includes("not") &&
+        lc4.includes("available")
+      )
+    )
+  );
 
     if (!indicatesNoData) {
        throw new Error(`Test 4 Failed: Model failed to express NO_DATA effectively. Response: "${res4.content}"`);

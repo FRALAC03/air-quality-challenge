@@ -276,23 +276,44 @@ async function main() {
     const lc3 =
       data3.content.toLowerCase();
 
-    const communicatesNotAssessable =
-      lc3.includes("non valut") ||
-      lc3.includes(
-        "non è calcolabile",
-      ) ||
-      lc3.includes(
-        "non e calcolabile",
-      ) ||
-      lc3.includes(
-        "non può essere calcolat",
-      ) ||
-      lc3.includes(
-        "non puo essere calcolat",
-      ) ||
-      lc3.includes(
-        "dataset semestrale",
-      );
+    const hasAssessmentImpossibility =
+  lc3.includes("non valut") ||
+  lc3.includes("non è possibile valut") ||
+  lc3.includes("non e possibile valut") ||
+  lc3.includes("non può essere valutat") ||
+  lc3.includes("non puo essere valutat") ||
+  lc3.includes("cannot be assessed") ||
+  lc3.includes("cannot be evaluated") ||
+  lc3.includes("not assessable");
+
+const hasCalculationImpossibility =
+  lc3.includes("non calcolabile") ||
+  lc3.includes("non è calcolabile") ||
+  lc3.includes("non e calcolabile") ||
+  lc3.includes("non può essere calcolat") ||
+  lc3.includes("non puo essere calcolat") ||
+  lc3.includes("non è possibile calcolare") ||
+  lc3.includes("non e possibile calcolare") ||
+  lc3.includes("non supporta il calcolo") ||
+  lc3.includes("non supporta calcoli") ||
+  lc3.includes("not calculable") ||
+  lc3.includes("cannot be calculated") ||
+  lc3.includes("cannot calculate");
+
+const hasAnnualDatasetContext =
+  lc3.includes("media annuale") ||
+  lc3.includes("annual average") ||
+  lc3.includes("dataset semestrale") ||
+  lc3.includes("dati semestrali") ||
+  lc3.includes("semi-annual dataset") ||
+  lc3.includes("semestral");
+
+const communicatesNotAssessable =
+  hasAssessmentImpossibility ||
+  (
+    hasCalculationImpossibility &&
+    hasAnnualDatasetContext
+  );
 
     if (
       !communicatesNotAssessable

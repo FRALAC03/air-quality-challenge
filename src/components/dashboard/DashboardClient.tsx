@@ -15,6 +15,7 @@ import KpiGrid from "./KpiGrid";
 import LoadingState from "./LoadingState";
 import ErrorState from "./ErrorState";
 import ExplorePanel from "./ExplorePanel";
+import ChatPanel from "./ChatPanel";
 
 interface DashboardBootstrapData {
   summary: DashboardSummaryResult;
@@ -146,35 +147,37 @@ export default function DashboardClient() {
     dashboardData?.status === "NO_DATA";
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-      <Header maxDate={maxDate} />
+  <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <Header maxDate={maxDate} />
 
-      {isNoData ? (
-        <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-700">
-            Nessun dato disponibile
-          </h2>
+    {isNoData ? (
+      <div className="bg-white p-12 text-center rounded-xl border border-slate-200 shadow-sm">
+        <h2 className="text-xl font-semibold text-slate-700">
+          Nessun dato disponibile
+        </h2>
 
-          <p className="mt-2 text-slate-500">
-            Il dataset ARPA non contiene
-            rilevamenti disponibili.
-          </p>
-        </div>
-      ) : (
-        <>
-          <KpiGrid
-            kpis={
-              dashboardData?.kpis ?? []
-            }
-          />
+        <p className="text-slate-500 mt-2">
+          Il dataset ARPA non contiene rilevamenti per l&apos;area.
+        </p>
+      </div>
+    ) : (
+      <>
+        <KpiGrid
+          kpis={
+            dashboardData?.kpis ||
+            []
+          }
+        />
 
-          <ExplorePanel
-            municipalities={
-              municipalities
-            }
-          />
-        </>
-      )}
-    </div>
-  );
+        <ExplorePanel
+          municipalities={
+            municipalities
+          }
+        />
+      </>
+    )}
+
+    <ChatPanel />
+  </div>
+);
 }

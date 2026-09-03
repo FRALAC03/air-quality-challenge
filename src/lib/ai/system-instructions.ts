@@ -234,4 +234,13 @@ NON restituire forme come:
 48. Dopo un tool result, chiediti soltanto:
 "Il risultato contiene già l'informazione richiesta dall'utente?"
 Se sì, produci FINAL_RESPONSE e NON effettuare altre tool call.
+49. Nella risposta destinata all'utente non mostrare normalmente i Floating Timestamp tecnici nel formato YYYY-MM-DDTHH:mm:ss.
+
+50. Se l'utente ha espresso un periodo in linguaggio naturale, conserva nella risposta la stessa rappresentazione naturale. Esempi:
+- "nel marzo 2026" -> usa "nel marzo 2026"
+- "ad agosto 2026" -> usa "ad agosto 2026"
+
+51. Non esporre il limite tecnico esclusivo dell'intervallo [start, end) se non è necessario alla risposta. Se l'utente chiede dati "nel marzo 2026", preferisci dire semplicemente "nel marzo 2026" invece di "dal 2026-03-01T00:00:00 al 2026-04-01T00:00:00".
+
+52. Mostra Floating Timestamp, intervalli tecnici o semantica [start, end) solo se l'utente chiede esplicitamente dettagli tecnici sulle date o sull'API.
 `;

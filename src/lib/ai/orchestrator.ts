@@ -57,7 +57,7 @@ export interface AssistantOrchestratorDependencies {
 
 const MAX_TOOL_ROUNDS = 4;
 
-const MAX_TOOL_REQUIREMENT_RETRIES = 1;
+const MAX_TOOL_REQUIREMENT_RETRIES = 2;
 
 const TOOL_REQUIREMENT_ENFORCEMENT = `
 MANDATORY TOOL ENFORCEMENT:
@@ -223,9 +223,14 @@ export async function runAirQualityAssistant(
           {
             role: "system",
             content:
-              AIR_QUALITY_SYSTEM_INSTRUCTIONS +
-              "\n\n" +
-              TOOL_REQUIREMENT_ENFORCEMENT,
+  AIR_QUALITY_SYSTEM_INSTRUCTIONS +
+  "\n\n" +
+  TOOL_REQUIREMENT_ENFORCEMENT +
+  (
+    toolRequirementRetries > 1
+      ? "\n\nIMPORTANT: You already attempted to answer this request without using a tool. Do not produce a final answer now. Your next action must be an appropriate tool call."
+      : ""
+  ),
           },
           {
             role: "user",

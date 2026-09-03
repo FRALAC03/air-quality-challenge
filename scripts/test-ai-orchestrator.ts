@@ -337,22 +337,25 @@ async function main() {
     // TEST 13 — TOOL REQUIRED: MODEL REFUSES TWICE
     // --------------------------------------------------
     const adapter13 =
-      new ScriptedModelAdapter([
-        // Primo tentativo senza tool.
-        {
-          type: "FINAL_RESPONSE",
-          content:
-            "La soglia è 50.",
-        },
+  new ScriptedModelAdapter([
+    {
+      type: "FINAL_RESPONSE",
+      content:
+        "La soglia è 50.",
+    },
 
-        // Anche dopo l'enforcement il modello
-        // continua a rispondere senza tool.
-        {
-          type: "FINAL_RESPONSE",
-          content:
-            "Insisto: la soglia è 50.",
-        },
-      ]);
+    {
+      type: "FINAL_RESPONSE",
+      content:
+        "Insisto: la soglia è 50.",
+    },
+
+    {
+      type: "FINAL_RESPONSE",
+      content:
+        "Continuo a rispondere senza tool.",
+    },
+  ]);
 
     const res13 =
       await runAirQualityAssistant(
@@ -368,7 +371,7 @@ async function main() {
       res13.error.code !==
         "TOOL_REQUIRED" ||
       res13.toolCallsExecuted !== 0 ||
-      adapter13.callCount !== 2
+      adapter13.callCount !== 3
     ) {
       throw new Error(
         `Test 13 Failed: ${JSON.stringify(

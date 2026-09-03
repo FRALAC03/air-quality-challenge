@@ -8,6 +8,10 @@ import {
   OllamaAdapter,
 } from "@/lib/ai/providers/ollama-adapter";
 
+import {
+  normalizeAssistantContent,
+} from "@/lib/frontend/chat-formatters";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -127,18 +131,41 @@ export async function POST(
   // ==========================================================
 
   if (result.status === "OK") {
+  const content =
+    normalizeAssistantContent(
+      result.content,
+    );
+
+  if (!content) {
     return NextResponse.json(
       {
-        status: "OK",
-        content: result.content,
+        status: "ERROR",
+        error: {
+          code: "MODEL_ERROR",
+          message:
+            "Assistant returned empty content.",
+        },
         toolCallsExecuted:
           result.toolCallsExecuted,
       },
       {
-        status: 200,
+        status: 500,
       },
     );
   }
+
+  return NextResponse.json(
+    {
+      status: "OK",
+      content,
+      toolCallsExecuted:
+        result.toolCallsExecuted,
+    },
+    {
+      status: 200,
+    },
+  );
+}
 
   // ==========================================================
   // 6. ORCHESTRATOR ERROR
