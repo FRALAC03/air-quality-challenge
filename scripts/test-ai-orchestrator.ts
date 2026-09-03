@@ -49,7 +49,7 @@ class ScriptedModelAdapter implements AirQualityModelAdapter {
 async function main() {
   console.log("Starting AI Orchestrator Verification...\n");
   let passed = 0;
-  const total = 11;
+  const total = 13;
 
   try {
     // --------------------------------------------------
@@ -198,6 +198,216 @@ async function main() {
     const toolMsg11 = adapter11.receivedMessages[1].find(m => m.role === "tool");
     if (!toolMsg11 || !toolMsg11.content.includes("INVALID_REQUEST")) throw new Error("Test 11 Failed: Domain validity bypass not found in history");
     console.log("✅ Test 11 Passed (Boundary passed syntax, Domain correctly trapped INVALID_REQUEST)");
+    passed++;
+
+        // --------------------------------------------------
+    // TEST 12 — TOOL REQUIRED: RETRY THEN TOOL SUCCESS
+    // --------------------------------------------------
+    const adapter12 = new ScriptedModelAdapter([
+      // Primo tentativo:
+      // il modello prova a rispondere direttamente.
+      {
+        type: "FINAL_RESPONSE",
+        content: "La soglia è 50.",
+      },
+
+      // L'orchestrator deve rifiutare la risposta
+      // perché la domanda richiede dati deterministici,
+      // quindi il modello al retry usa finalmente il tool.
+      {
+        type: "TOOL_CALL",
+        call: {
+          name: "get_threshold",
+          arguments: {
+            pollutant: "PM10",
+          },
+        },
+      },
+
+      // Dopo il risultato tool può produrre
+      // la risposta finale.
+      {
+        type: "FINAL_RESPONSE",
+        content: "Il limite PM10 è 50.",
+      },
+    ]);
+
+    const res12 =
+      await runAirQualityAssistant(
+        {
+          userMessage:
+            "Qual è la soglia PM10?",
+        },
+        adapter12,
+      );
+
+    if (
+      res12.status !== "OK" ||
+      res12.toolCallsExecuted !== 1 ||
+      adapter12.callCount !== 3 ||
+      res12.content !==
+        "Il limite PM10 è 50."
+    ) {
+      throw new Error(
+        `Test 12 Failed: ${JSON.stringify(
+          res12,
+        )}`,
+      );
+    }
+
+    // Primo model hit:
+    // system + user normali.
+    const firstAttempt12 =
+      adapter12.receivedMessages[0];
+
+    if (
+      firstAttempt12.length !== 2 ||
+      firstAttempt12[0]?.role !==
+        "system" ||
+      firstAttempt12[1]?.role !== "user"
+    ) {
+      throw new Error(
+        "Test 12 Failed: invalid initial model history.",
+      );
+    }
+
+    // Secondo model hit:
+    // deve essere un NUOVO initial turn,
+    // ma con il system prompt rafforzato.
+    const retryAttempt12 =
+      adapter12.receivedMessages[1];
+
+    if (
+      retryAttempt12.length !== 2 ||
+      retryAttempt12[0]?.role !==
+        "system" ||
+      retryAttempt12[1]?.role !== "user"
+    ) {
+      throw new Error(
+        "Test 12 Failed: retry was not reset to system + user.",
+      );
+    }
+
+    if (
+      !retryAttempt12[0].content.includes(
+        "MANDATORY TOOL ENFORCEMENT",
+      )
+    ) {
+      throw new Error(
+        "Test 12 Failed: mandatory tool enforcement was not injected.",
+      );
+    }
+
+    // Terzo model hit:
+    // deve contenere il risultato deterministico
+    // del get_threshold.
+    const finalAttempt12 =
+      adapter12.receivedMessages[2];
+
+    const toolMsg12 =
+      finalAttempt12.find(
+        (message) =>
+          message.role === "tool",
+      );
+
+    if (
+      !toolMsg12 ||
+      toolMsg12.role !== "tool" ||
+      toolMsg12.toolName !==
+        "get_threshold" ||
+      !toolMsg12.content.includes(
+        '"value":50',
+      )
+    ) {
+      throw new Error(
+        `Test 12 Failed: deterministic tool result ` +
+          `missing from retry history. Found: ` +
+          `${JSON.stringify(toolMsg12)}`,
+      );
+    }
+
+    console.log(
+      "✅ Test 12 Passed " +
+        "(Data-dependent direct answer blocked, " +
+        "retry forced tool usage)",
+    );
+    passed++;
+
+    // --------------------------------------------------
+    // TEST 13 — TOOL REQUIRED: MODEL REFUSES TWICE
+    // --------------------------------------------------
+    const adapter13 =
+      new ScriptedModelAdapter([
+        // Primo tentativo senza tool.
+        {
+          type: "FINAL_RESPONSE",
+          content:
+            "La soglia è 50.",
+        },
+
+        // Anche dopo l'enforcement il modello
+        // continua a rispondere senza tool.
+        {
+          type: "FINAL_RESPONSE",
+          content:
+            "Insisto: la soglia è 50.",
+        },
+      ]);
+
+    const res13 =
+      await runAirQualityAssistant(
+        {
+          userMessage:
+            "Qual è la soglia PM10?",
+        },
+        adapter13,
+      );
+
+    if (
+      res13.status !== "ERROR" ||
+      res13.error.code !==
+        "TOOL_REQUIRED" ||
+      res13.toolCallsExecuted !== 0 ||
+      adapter13.callCount !== 2
+    ) {
+      throw new Error(
+        `Test 13 Failed: ${JSON.stringify(
+          res13,
+        )}`,
+      );
+    }
+
+    // Anche qui verifichiamo che il secondo
+    // tentativo abbia ricevuto il prompt
+    // di enforcement.
+    const retryAttempt13 =
+      adapter13.receivedMessages[1];
+
+    if (
+      retryAttempt13.length !== 2 ||
+      retryAttempt13[0]?.role !==
+        "system" ||
+      retryAttempt13[1]?.role !== "user"
+    ) {
+      throw new Error(
+        "Test 13 Failed: retry was not reset to system + user.",
+      );
+    }
+
+    if (
+      !retryAttempt13[0].content.includes(
+        "MANDATORY TOOL ENFORCEMENT",
+      )
+    ) {
+      throw new Error(
+        "Test 13 Failed: mandatory tool enforcement was not injected.",
+      );
+    }
+
+    console.log(
+      "✅ Test 13 Passed " +
+        "(Repeated ungrounded answer blocked with TOOL_REQUIRED)",
+    );
     passed++;
 
     console.log(`\n🎉 ALL AI ORCHESTRATOR TESTS PASSED (${passed}/${total})`);
