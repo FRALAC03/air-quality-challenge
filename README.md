@@ -717,6 +717,66 @@ Una richiesta multi-turn può invece contenere:
 
 ---
 
+# Valutazione dell'affidabilità dell'assistente
+
+L'affidabilità dell'assistente viene valutata su più livelli.
+
+### Grounding dei dati
+
+Le domande che dipendono dal dataset devono utilizzare almeno un tool. L'orchestrator impedisce al modello di fornire direttamente come attendibile una risposta data-dependent non verificata.
+
+### Calcoli deterministici
+
+Medie, confronti, soglie e superamenti non vengono calcolati dal modello linguistico, ma dal dominio applicativo.
+
+### Stati espliciti
+
+Situazioni come assenza di dati o impossibilità di effettuare una valutazione vengono rappresentate tramite stati espliciti come:
+
+- `NO_DATA`
+- `INVALID_REQUEST`
+- `NOT_ASSESSABLE`
+
+In particolare, `NOT_ASSESSABLE` non può essere trasformato dal modello in un giudizio di conformità.
+
+### Validazione delle tool call
+
+Nome del tool e argomenti prodotti dal modello vengono validati prima dell'esecuzione.
+
+### Strategia fail-closed
+
+Se una domanda che necessita di dati non viene correttamente grounded anche dopo i tentativi previsti, il sistema restituisce un errore invece di accettare una risposta non verificata.
+
+### Test automatici
+
+L'architettura AI è verificata attraverso test dedicati a:
+
+- orchestrator;
+- grounding;
+- conversation context;
+- frontend chat;
+- provider Ollama reale;
+- API HTTP;
+- casi `NO_DATA`;
+- casi `NOT_ASSESSABLE`;
+- conversazioni multi-turn.
+
+Al momento della consegna la suite AI/chat utilizzata per la verifica finale risulta:
+
+```text
+Conversation Context       7/7
+Chat Frontend              8/8
+AI Orchestrator           13/13
+Ollama Provider            4/4
+Chat API                    8/8
+                           -----
+Totale                     40/40
+```
+
+A questi controlli si aggiungono `npm run lint`, `npm run build` e il test di accesso al database.
+
+---
+
 # Test automatici
 
 Il progetto contiene diversi livelli di verifica.
@@ -886,6 +946,43 @@ Anche in questo caso il valore viene recuperato nuovamente attraverso il tool ap
 
 # Principali decisioni architetturali
 
+## Priorità progettuali
+
+Durante lo sviluppo ho scelto di privilegiare soprattutto tre aspetti:
+
+1. **Affidabilità dei dati**, evitando di delegare al modello linguistico calcoli numerici o interpretazioni normative che possono essere eseguite deterministicamente.
+
+2. **Separazione delle responsabilità**, mantenendo distinti frontend, accesso ai dati, logica di dominio e componente AI.
+
+3. **Verificabilità**, costruendo test automatici sia per il dominio applicativo sia per l'orchestrazione AI e per le API.
+
+La priorità non è stata quindi massimizzare il numero di funzionalità disponibili, ma costruire una soluzione nella quale le informazioni mostrate all'utente fossero riproducibili e verificabili.
+
+In particolare, ho preferito implementare un assistente AI con accesso controllato ai dati tramite tool invece di permettere al modello di produrre autonomamente valori numerici.
+
+## Scelta del database
+
+Ho utilizzato PostgreSQL come database relazionale e Prisma come livello di accesso ai dati.
+
+La scelta di PostgreSQL permette di gestire in modo strutturato misurazioni, stazioni, comuni, inquinanti e intervalli temporali, mantenendo query e aggregazioni riproducibili.
+
+Prisma fornisce invece un boundary tipizzato tra applicazione e database, riducendo il rischio di errori nella gestione dei dati e mantenendo il codice di accesso separato dalla logica di dominio.
+
+## Scelta del modello LLM
+
+Per la configurazione finale ho scelto **Qwen3 4B eseguito localmente tramite Ollama**.
+
+La scelta è stata motivata da:
+
+- possibilità di eseguire il modello completamente in locale;
+- assenza di costi API durante l'esecuzione;
+- supporto adeguato al tool calling richiesto dal progetto;
+- possibilità di mantenere l'architettura indipendente dal provider tramite un adapter dedicato.
+
+Durante lo sviluppo sono state considerate anche altre configurazioni, ma Qwen3 4B ha fornito il compromesso più adatto tra dimensioni, velocità locale e comportamento nell'utilizzo dei tool.
+
+L'LLM non viene comunque considerato fonte dei dati: il suo compito principale è interpretare la richiesta dell'utente e selezionare gli strumenti necessari.
+
 ## Calcoli deterministici
 
 Il modello linguistico non esegue direttamente la business logic.
@@ -935,6 +1032,44 @@ Lo stato non viene condiviso globalmente tra utenti o richieste indipendenti.
 Il contesto conversazionale viene inviato esplicitamente dal client.
 
 La history viene utilizzata solamente per comprendere riferimenti linguistici e non come sostituto del database.
+
+---
+
+# Uso di AI e coding agent durante lo sviluppo
+
+Durante lo sviluppo ho utilizzato strumenti di AI e coding agent come supporto alla progettazione, all'implementazione e alla verifica della soluzione.
+
+In particolare li ho utilizzati per:
+
+- confrontare alternative architetturali;
+- ragionare sulla separazione tra modello linguistico e logica deterministica;
+- generare e revisionare porzioni di codice;
+- individuare edge case;
+- costruire e migliorare i test automatici;
+- analizzare errori di lint, build e integrazione;
+- revisionare la documentazione tecnica.
+
+Il codice suggerito dagli strumenti AI non è stato considerato automaticamente corretto.
+
+Le modifiche sono state integrate in modo incrementale e successivamente verificate attraverso:
+
+- TypeScript;
+- ESLint;
+- build di produzione;
+- test del dominio;
+- test dell'orchestrator;
+- test con il provider Ollama reale;
+- test end-to-end delle API.
+
+Un esempio significativo riguarda l'affidabilità dell'assistente.
+
+Durante i test sono emersi casi in cui il modello produceva risposte linguisticamente plausibili ma semanticamente non sufficienti. Ad esempio, in un caso il modello aveva interpretato il valore di una soglia normativa come se rappresentasse anche una valutazione di conformità.
+
+Questo comportamento è stato individuato attraverso i test e ha portato a rafforzare sia le istruzioni fornite al modello sia i controlli automatici.
+
+Allo stesso modo, i test `NO_DATA` e `NOT_ASSESSABLE` sono stati progressivamente resi più rigorosi per distinguere una semplice risposta plausibile da una risposta semanticamente corretta rispetto al dominio.
+
+Ho quindi utilizzato l'AI come strumento di supporto allo sviluppo e al ragionamento, mantenendo le decisioni architetturali, la validazione e la verifica finale all'interno del normale processo di sviluppo software.
 
 ---
 
