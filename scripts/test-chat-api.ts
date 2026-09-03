@@ -367,25 +367,67 @@ const communicatesNotAssessable =
     }
 
     const lc4 =
-      data4.content.toLowerCase();
+  data4.content.toLowerCase();
 
-    const communicatesNoData =
-      lc4.includes(
-        "non ci sono dati",
-      ) ||
-      lc4.includes(
-        "nessun dato",
-      ) ||
+const communicatesNoData =
+  // --------------------------------------------------
+  // Italiano — forme plurali
+  // --------------------------------------------------
+  lc4.includes("non ci sono dati") ||
+  lc4.includes("nessun dato") ||
+  lc4.includes("dati non disponibili") ||
+  lc4.includes("non sono disponibili dati") ||
+  lc4.includes("assenza di dati") ||
+
+  // --------------------------------------------------
+  // Italiano — forme singolari / alternative
+  // --------------------------------------------------
+  lc4.includes("dato non disponibile") ||
+  lc4.includes("dato richiesto non è disponibile") ||
+  lc4.includes("dato richiesto non e disponibile") ||
+  lc4.includes("il dato richiesto non è disponibile") ||
+  lc4.includes("il dato richiesto non e disponibile") ||
+  lc4.includes("non ci sono informazioni") ||
+  lc4.includes("nessuna informazione") ||
+  lc4.includes("non è disponibile nel sistema") ||
+  lc4.includes("non e disponibile nel sistema") ||
+
+  // --------------------------------------------------
+  // Inglese
+  // --------------------------------------------------
+  lc4.includes("no data available") ||
+  lc4.includes("no data") ||
+  lc4.includes("data unavailable") ||
+  lc4.includes("data are not available") ||
+  lc4.includes("data is not available") ||
+  lc4.includes("requested data is not available") ||
+  lc4.includes("no information available") ||
+
+  // --------------------------------------------------
+  // Fallback italiano controllato
+  // --------------------------------------------------
+  (
+    (
+      lc4.includes("dato") ||
+      lc4.includes("dati")
+    ) &&
+    lc4.includes("non") &&
+    lc4.includes("disponibil")
+  ) ||
+
+  // --------------------------------------------------
+  // Fallback inglese controllato
+  // --------------------------------------------------
+  (
+    lc4.includes("data") &&
+    (
+      lc4.includes("unavailable") ||
       (
-        lc4.includes("dati") &&
-        lc4.includes("non") &&
-        lc4.includes(
-          "disponibil",
-        )
-      ) ||
-      lc4.includes(
-        "assenza di dati",
-      );
+        lc4.includes("not") &&
+        lc4.includes("available")
+      )
+    )
+  );
 
     if (!communicatesNoData) {
       throw new Error(
@@ -608,6 +650,23 @@ if (
 ) {
   throw new Error(
     `Test 8 Failed on first turn: ${JSON.stringify(data8a)}`,
+  );
+}
+
+const lc8a =
+  data8a.content.toLowerCase();
+
+const containsUnsupportedCompliance =
+  lc8a.includes("è conforme") ||
+  lc8a.includes("e conforme") ||
+  lc8a.includes("non conforme") ||
+  lc8a.includes("entro i limiti") ||
+  lc8a.includes("compliant");
+
+if (containsUnsupportedCompliance) {
+  throw new Error(
+    `Test 8 Failed: threshold-only answer inferred unsupported compliance. ` +
+      `Response: "${data8a.content}"`,
   );
 }
 

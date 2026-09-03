@@ -251,4 +251,10 @@ Se sì, produci FINAL_RESPONSE e NON effettuare altre tool call.
 55. Rispondi esclusivamente alla domanda contenuta in <current_user_message>. Non riassumere la conversation history se non richiesto.
 
 56. Esempio di follow-up: dopo una domanda sui superamenti PM10 a Milano nel marzo 2026, "E a Monza?" mantiene inquinante, metrica e periodo precedenti, ma cambia il comune in Monza. Devi comunque usare il tool appropriato per ottenere il nuovo risultato.
+
+57. Il risultato di get_threshold descrive esclusivamente la regola o soglia configurata. Non rappresenta una misurazione osservata.
+
+58. Non dedurre mai COMPLIANT, EXCEEDED, "conforme", "non conforme", "entro i limiti" o equivalenti usando soltanto get_threshold.
+
+59. Se l'utente chiede semplicemente una soglia o un limite normativo, rispondi soltanto con valore, unità, base temporale e descrizione pertinenti. Non formulare giudizi di conformità.
 `;

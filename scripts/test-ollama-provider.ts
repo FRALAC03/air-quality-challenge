@@ -80,40 +80,52 @@ if (!res3.content) {
   throw new Error("Test 3 Failed: Empty response content.");
 }
 
-const lc3 = res3.content.toLowerCase();
+const lc3 =
+  res3.content.toLowerCase();
 
-const isAffirmativeExceeded =
-  lc3.includes("non è conforme") ||
-  lc3.includes("non e conforme") ||
-  lc3.includes("ha superato") ||
-  lc3.includes("non rispettata") ||
-  lc3.includes("sforament");
+const hasAssessmentImpossibility =
+  lc3.includes("non valut") ||
+  lc3.includes("non è possibile valut") ||
+  lc3.includes("non e possibile valut") ||
+  lc3.includes("non può essere valutat") ||
+  lc3.includes("non puo essere valutat") ||
+  lc3.includes("cannot be assessed") ||
+  lc3.includes("cannot be evaluated") ||
+  lc3.includes("not assessable");
 
-const isAffirmativeCompliant =
-  lc3.includes("è conforme") ||
-  lc3.includes("e conforme") ||
-  lc3.includes("rispettata") ||
-  lc3.includes("entro i limiti");
-
-const hasAssessRoot =
-  lc3.includes("valut") ||
-  lc3.includes("non applicabile") ||
+const hasCalculationImpossibility =
   lc3.includes("non calcolabile") ||
   lc3.includes("non è calcolabile") ||
   lc3.includes("non e calcolabile") ||
   lc3.includes("non può essere calcolat") ||
   lc3.includes("non puo essere calcolat") ||
-  lc3.includes("non può essere valutat") ||
-  lc3.includes("non puo essere valutat") ||
-  lc3.includes("dataset semestrale") ||
-  lc3.includes("media annuale") ||
-  lc3.includes("descrit");
+  lc3.includes("non è possibile calcolare") ||
+  lc3.includes("non e possibile calcolare") ||
+  lc3.includes("non supporta il calcolo") ||
+  lc3.includes("non supporta calcoli") ||
+  lc3.includes("not calculable") ||
+  lc3.includes("cannot be calculated") ||
+  lc3.includes("cannot calculate");
 
-// Il modello NON deve decidere compliant / exceeded
-// se il caso è NOT_ASSESSABLE.
-if ((isAffirmativeExceeded || isAffirmativeCompliant) && !hasAssessRoot) {
+const hasAnnualDatasetContext =
+  lc3.includes("media annuale") ||
+  lc3.includes("annual average") ||
+  lc3.includes("dataset semestrale") ||
+  lc3.includes("dati semestrali") ||
+  lc3.includes("semi-annual dataset") ||
+  lc3.includes("semestral");
+
+const communicatesNotAssessable =
+  hasAssessmentImpossibility ||
+  (
+    hasCalculationImpossibility &&
+    hasAnnualDatasetContext
+  );
+
+if (!communicatesNotAssessable) {
   throw new Error(
-    `Test 3 Failed: PM2.5 non-assessability was not communicated. Response: "${res3.content}"`
+    `Test 3 Failed: PM2.5 non-assessability was not communicated. ` +
+      `Response: "${res3.content}"`,
   );
 }
 
@@ -143,26 +155,54 @@ passed++;
   res4.content.toLowerCase();
 
 const indicatesNoData =
-  // Italiano
+  // --------------------------------------------------
+  // Italiano — forme plurali
+  // --------------------------------------------------
   lc4.includes("non ci sono dati") ||
   lc4.includes("nessun dato") ||
   lc4.includes("dati non disponibili") ||
-  lc4.includes("non sono disponibili") ||
+  lc4.includes("non sono disponibili dati") ||
   lc4.includes("assenza di dati") ||
 
+  // --------------------------------------------------
+  // Italiano — forme singolari / alternative
+  // --------------------------------------------------
+  lc4.includes("dato non disponibile") ||
+  lc4.includes("dato richiesto non è disponibile") ||
+  lc4.includes("dato richiesto non e disponibile") ||
+  lc4.includes("il dato richiesto non è disponibile") ||
+  lc4.includes("il dato richiesto non e disponibile") ||
+  lc4.includes("non ci sono informazioni") ||
+  lc4.includes("nessuna informazione") ||
+  lc4.includes("non è disponibile nel sistema") ||
+  lc4.includes("non e disponibile nel sistema") ||
+
+  // --------------------------------------------------
   // Inglese
+  // --------------------------------------------------
   lc4.includes("no data available") ||
   lc4.includes("no data") ||
   lc4.includes("data unavailable") ||
   lc4.includes("data are not available") ||
   lc4.includes("data is not available") ||
+  lc4.includes("requested data is not available") ||
+  lc4.includes("no information available") ||
 
-  // Fallback semantico controllato
+  // --------------------------------------------------
+  // Fallback italiano controllato
+  // --------------------------------------------------
   (
-    lc4.includes("dati") &&
+    (
+      lc4.includes("dato") ||
+      lc4.includes("dati")
+    ) &&
     lc4.includes("non") &&
     lc4.includes("disponibil")
   ) ||
+
+  // --------------------------------------------------
+  // Fallback inglese controllato
+  // --------------------------------------------------
   (
     lc4.includes("data") &&
     (
